@@ -6,7 +6,7 @@ from pydantic import BaseModel
 DATABASE_NAME = "hotel"
 COLLECTION_NAME = "reservation"
 MONGO_DB_URL = "mongodb://localhost"
-MONGO_DB_PORT = 27017
+MONGO_DB_PORT = 8000
 
 
 class Reservation(BaseModel):
@@ -41,20 +41,48 @@ def room_avaliable(room_id: int, start_date: str, end_date: str):
 
 @app.get("/reservation/by-name/{name}")
 def get_reservation_by_name(name:str):
-    pass
+    return list(collection.find({"name":name}))
 
 @app.get("/reservation/by-room/{room_id}")
 def get_reservation_by_room(room_id: int):
-    pass
+    return list(collection.find({"room_id":room_id}))
 
 @app.post("/reservation")
 def reserve(reservation : Reservation):
-    pass
+    if (room_avaliable(reservation.room_id, reservation.start_date, reservation.end_date)):
+        collection.insert_one({"room_id":reservation.room_id,
+                              "name":reservation.name, 
+                              "start_date":str(reservation.start_date),
+                              "end_date":str(reservation.end_date)})
+    else:
+        raise HTTPException(404)
 
 @app.put("/reservation/update")
 def update_reservation(reservation: Reservation, new_start_date: date = Body(), new_end_date: date = Body()):
-    pass
+    if(bool(collection.find({"room_id":reservation.room_id,
+                              "name":reservation.name, 
+                              "start_date":str(reservation.start_date),
+                              "end_date":str(reservation.end_date)}))):
+        if(room_avaliable(reservation.room_id, new_start_date,new_end_date)):
+            collection.update_one({"room_id":reservation.room_id,
+                                    "name":reservation.name, 
+                                    "start_date":str(reservation.start_date),
+                                    "end_date":str(reservation.end_date)},
+                                    update= 
+                                    {"start_date":str(new_start_date),
+                                    "end_date":str(new_end_date)})
+        else:
+            raise HTTPException(404)
+    else:
+        raise HTTPException(404)
 
 @app.delete("/reservation/delete")
 def cancel_reservation(reservation: Reservation):
-    pass
+     if(bool(collection.find({"room_id":reservation.room_id,
+                              "name":reservation.name, 
+                              "start_date":str(reservation.start_date),
+                              "end_date":str(reservation.end_date)}))):
+         collection.delete_one({"room_id":reservation.room_id,
+                              "name":reservation.name, 
+                              "start_date":str(reservation.start_date),
+                              "end_date":str(reservation.end_date)})
